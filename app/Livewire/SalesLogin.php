@@ -8,6 +8,6 @@ class SalesLogin extends Component
 {
     public function render()
     {
-        return view('livewire.sales-login');
+        return view('livewire.sales-login')->layout('layouts.app');
     }
 }
