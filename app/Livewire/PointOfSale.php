@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use Livewire\Component;
+use Illuminate\Support\Facades\DB;
 
 class PointOfSale extends Component
 {
@@ -13,7 +14,6 @@ class PointOfSale extends Component
     public function mount()
     {
         $this->cart = [];
-        // Load dark mode preference from session
         $this->darkMode = session('darkMode', false);
     }
 
@@ -26,11 +26,6 @@ class PointOfSale extends Component
     public function setCategory($category)
     {
         $this->activeCategory = $category;
-    }
-
-    public function goToLogin()
-    {
-        return redirect()->route('sales.login');
     }
 
     public function addToCart($productId)
@@ -84,11 +79,37 @@ class PointOfSale extends Component
 
     public function checkout()
     {
+        if (empty($this->cart)) {
+            return;
+        }
+
+        $subtotal = $this->getSubtotal();
+        $tax = $this->getTax();
         $total = $this->getTotal();
 
-        session()->flash('message', 'Checkout complete! Total: $' . number_format($total, 2));
+        // Generate transaction ID
+        $transactionId = 'TXN' . time() . rand(1000, 9999);
 
-        $this->cart = [];
+        // Save transaction to database
+        $transactionData = [
+            'transaction_id' => $transactionId,
+            'customer_id' => null,
+            'items' => json_encode($this->cart),
+            'subtotal' => $subtotal,
+            'tax' => $tax,
+            'total' => $total,
+            'payment_method' => 'Cash',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        try {
+            DB::table('transactions')->insert($transactionData);
+            session()->flash('message', 'Checkout complete! Total: ₦' . number_format($total, 2));
+            $this->cart = [];
+        } catch (\Exception $e) {
+            session()->flash('error', 'Error processing checkout. Please try again.');
+        }
     }
 
     public function getSubtotal()
